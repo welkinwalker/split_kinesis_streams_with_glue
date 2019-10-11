@@ -25,4 +25,7 @@ Amazon Kinesis Data Streams 是在 Amazon 内部和外部都得到广泛使用�
 DMS 默认使用单线程向 Kinesis 进行投递，我们需要对任务进行配置，增加并发度。
 
 ## 3. 增加一个 Glue Job 来进行表格分离操作
-
+### 从 S3 对象创建一个 DDF
+### 根据表名进行拆分
+### relationize 
+### 写入 S3
