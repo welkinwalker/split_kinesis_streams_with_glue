@@ -193,7 +193,7 @@ tmp_dyf = DynamicFrame.fromDF(employees_DF.repartition(1), glueContext, "temp")
 glueContext.write_dynamic_frame.from_options(\
     tmp_dyf, \
     "s3",\
-    {"path": "s3://bk-nrt-workshop/target/employees/employees/", "partitionKeys": ["gender"]},\
+    {"path": "s3://bucket/target/employees/employees/", "partitionKeys": ["gender"]},\
     "parquet")
 ```
 
