@@ -66,7 +66,7 @@ aws firehose create-delivery-stream \
 ## 2. 配置 DMS 进行数据采集
 DMS 的配置参考[Using Amazon Kinesis Data Streams as a Target for AWS Database Migration Service
 ](https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Target.Kinesis.html)。要注意的是，DMS 默认使用单线程向 Kinesis 进行投递，因此我们需要对任务进行配置，增加并发度。我们假设您已经正确创建了 Replication instance 和 Endpoints，并经测试可以成功连接。
-在示例代码中，我们从一个 MySQL 版本的 RDS 实例，进行全量和增量的数据抽取，通过 MaxFullLoadSubTasks 设置并发处理 8 张表，ParallelLoadThreads 为 32 表示每张表并发 32 线程进行处理。
+在示例代码中，我们从一个 MySQL 版本的 RDS 实例，进行全量和增量的数据抽取，通过 MaxFullLoadSubTasks 设置并发处理 8 张表，ParallelLoadThreads 为 16 表示每张表并发 16 线程进行处理。
 ```
 echo '''
 {
