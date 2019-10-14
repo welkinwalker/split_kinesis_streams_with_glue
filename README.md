@@ -1,4 +1,5 @@
-# 使用 AWS Glue 从 Kinesis 数据流中分离不同数据库表格
+使用 AWS Glue 从 Kinesis 数据流中分离不同数据库表格
+================================================
 关系型数据库是数据分析过程中非常普遍的一个数据源。一般我们会通过ETL过程，将数据库中的数据采集并转换为我们需要的格式，再由后端分析工具产生我们需要的结果。
 
 在现代数据仓库架构中，我们推荐基于 Amazon Simple Storage(S3)  的数据湖体系结构，AWS Database Migration Service(DMS) 能帮助我们完成关系型数据库到 S3 的全量和增量数据采集。其操作过程非常简单：
@@ -19,7 +20,8 @@ Amazon Kinesis Data Streams 是在 Amazon 内部和外部都得到广泛使用�
 
 接下来，我们将通过一个 demo 来演示具体操作。
 
-## 1. 新建 Kinesis Data Streams 数据流和 Firehose 投递流
+1. 新建 Kinesis Data Streams 数据流和 Firehose 投递流
+-----------------------------------------------------
 
 ## 2. 配置 DMS 进行数据采集
 DMS 默认使用单线程向 Kinesis 进行投递，我们需要对任务进行配置，增加并发度。
