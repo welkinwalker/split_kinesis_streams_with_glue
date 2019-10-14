@@ -126,7 +126,7 @@ aws dms start-replication-task \
 
 ## 3. 增加一个 Glue Job 来进行表格分离操作
 可以先创建一个 Glue Crawler ，对 Firehose 投递到 S3 中的内容进行爬取，我们可以看到仅有 metadata 和 data 两个字段。
-![](http://www.baidu.com/img/bdlogo.gif)  
+![schema_of_source](file://image/image1.png)  
 实际上， 
 
 ### 从 S3 对象创建一个 DDF
