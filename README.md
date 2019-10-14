@@ -1,4 +1,4 @@
-使用 AWS Glue 从 Kinesis 数据流中分离不同数据库表格
+# 使用 AWS Glue 从 Kinesis 数据流中分离不同数据库表格
 ================================================
 关系型数据库是数据分析过程中非常普遍的一个数据源。一般我们会通过ETL过程，将数据库中的数据采集并转换为我们需要的格式，再由后端分析工具产生我们需要的结果。
 
@@ -16,12 +16,14 @@ Amazon Kinesis Data Streams 是在 Amazon 内部和外部都得到广泛使用�
 
 如果让每个表格使用独立的数据流，可以解决上述问题，但增加了管理难度。如果另起一个 DMS 进程，则会增加源库负担。是否有更其它方法呢？其实我们可以借助 Glue 对 PySpark 语法的扩展，来灵活处理此问题。
 
-具体来讲，就是使用 SplitRows 这个 Transform 方法，基于 metadata 中的 schema name + table name 对记录进行过滤，把不同的表格内容分离出来。
+具体来讲，就是使用 filter 这个 Transform 方法，基于 metadata 中的 schema name + table name 对记录进行过滤，把不同的表格内容分离出来。
 
 接下来，我们将通过一个 demo 来演示具体操作。
 
 ## 1. 新建 Kinesis Data Streams 数据流和 Firehose 投递流
 -----------------------------------------------------
+[Using Amazon Kinesis Data Streams as a Target for AWS Database Migration Service
+](https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Target.Kinesis.html)
 
 ## 2. 配置 DMS 进行数据采集
 -----------------------------------------------------
