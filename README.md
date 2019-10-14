@@ -201,6 +201,7 @@ glueContext.write_dynamic_frame.from_options(\
 
 ## 4. 总结
 在这个 Demo 中，我们把源表中整个 schema 采集到了一个 Kinesis 数据流里面，再利用 AWS Glue 的 filter 筛选出我们需要的表，并充分利用 AWS Glue DynamicFrame schema on-the-fly 的特性，根据当前数据内容，动态生成表结构。
+
 我们看到，AWS Glue 除了提供了托管的 Spark 集群来承载 ETL 任务外，还提供了结构爬取程序、集中元数据存储，并且通过 DynamicFrame 对 PySpark 进行了扩展，满足了开发中的功能需求。
 
 
