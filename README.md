@@ -18,22 +18,116 @@ Amazon Kinesis Data Streams 是在 Amazon 内部和外部都得到广泛使用�
 
 具体来讲，就是使用 filter 这个 Transform 方法，基于 metadata 中的 schema name + table name 对记录进行过滤，把不同的表格内容分离出来。
 
-接下来，我们将通过一个 demo 来演示具体操作。
+接下来，我们将通过一个 demo 来演示具体操作，假设您已经安装并正确设置了 [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)，并使用 AWS 东京区域（ap-northeast-1）。
 
 ## 1. 新建 Kinesis Data Streams 数据流和 Firehose 投递流
 Kinesis Data Streams 的创建非常简单，提供 stream 名称和 shard 数量即可
 ```
-aws kinesis create-stream --stream-name "employees" --shard-count 2 --region ap-northeast-1
+aws kinesis create-stream \
+  --stream-name "employees" \
+  --shard-count 2 \
+  --region ap-northeast-1
+```
+Kinesis Firehose 支持投递到 Redshift、S3、ElasticSearch 和 Splunk，我们这里以 S3 为例。配置前需要定义好 IAM role 并建好 S3 bucket，ARN 的格式可以参考这个[页面](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html)，对配置中的 your_account_id、role_name 和 bucket_name 根据实际情况进行替换。
+```
+echo '''
+{
+  "RoleARN": "arn:aws:iam::your_acount_id:role/role_name",
+  "BucketARN": "arn:aws:s3:::bucket_name",
+  "Prefix": "source/employees/!{timestamp:yyyy-MM-dd}",
+  "ErrorOutputPrefix": "source/errors/!{firehose:error-output-type}-!{timestamp:yyyy-MM-dd}",
+  "BufferingHints": {
+    "SizeInMBs": 128,
+    "IntervalInSeconds": 600
+  },
+  "CompressionFormat": "GZIP",
+  "CloudWatchLoggingOptions": {
+    "Enabled": true,
+    "LogGroupName": "deliverystream",
+    "LogStreamName": "S3Delivery"
+  }
+}
+''' > s3_settings.json
+
+echo '''
+{
+  "KinesisStreamARN": "arn:aws:kinesis:ap-northeast-1:your_account_id:stream/employees",
+  "RoleARN": "arn:aws:iam::your_account_id:role/role_name"
+}
+'''> kinesis_settings.json
+
+aws firehose create-delivery-stream \
+  --delivery-stream-name "employees" \
+  --delivery-stream-type "KinesisStreamAsSource" \
+  --kinesis-stream-source-configuration "file://kinesis_settings.json" \
+  --s3-destination-configuration "file://s3_settings.json"
 ```
 
 ## 2. 配置 DMS 进行数据采集
-[Using Amazon Kinesis Data Streams as a Target for AWS Database Migration Service
-](https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Target.Kinesis.html)
+DMS 的配置参考[Using Amazon Kinesis Data Streams as a Target for AWS Database Migration Service
+](https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Target.Kinesis.html)。要注意的是，DMS 默认使用单线程向 Kinesis 进行投递，因此我们需要对任务进行配置，增加并发度。我们假设您已经正确创建了 Replication instance 和 Endpoints，并经测试可以成功连接。
+在示例代码中，我们从一个 MySQL 版本的 RDS 实例，进行全量和增量的数据抽取，通过 MaxFullLoadSubTasks 设置并发处理 8 张表，ParallelLoadThreads 为 32 表示每张表并发 32 线程进行处理。
+```
+echo '''
+{
+  "TargetMetadata": {
+    "ParallelLoadThreads": 16,
+    "ParallelLoadBufferSize":500
+  },
+  "FullLoadSettings": {
+    "MaxFullLoadSubTasks": 8,
+    "TransactionConsistencyTimeout": 600,
+    "CommitRate": 10000
+  },
+  "Logging": {
+    "EnableLogging": true
+  },
+  "ControlTablesSettings": {
+    "ControlSchema":"dms",
+    "HistoryTimeslotInMinutes":5,
+    "HistoryTableEnabled": true,
+    "SuspendedTablesTableEnabled": true,
+    "StatusTableEnabled": true
+  },
+  "ValidationSettings": {
+     "EnableValidation": false,
+     "ThreadCount": 5
+  }
+}
+''' > task_settings.json
 
-DMS 默认使用单线程向 Kinesis 进行投递，我们需要对任务进行配置，增加并发度。
+echo '''
+{
+  "TableMappings": [
+    {
+      "Type": "Include",
+      "SourceSchema": "employees",
+      "SourceTable": "%"
+    }
+    ]
+}
+''' > table_mapping.json
+
+aws dms create-replication-task \
+  --replication-task-identifier "employees-steams" \
+  --source-endpoint-arn arn:aws:dms:ap-northeast-1:your_account_id:endpoint:ARSRJBKL7NLRIWN3NSMQW6OHGY \
+  --target-endpoint-arn arn:aws:dms:ap-northeast-1:your_account_id:endpoint:TOTJIZQDMJANNC2CY2CNGUVH74 \
+  --replication-instance-arn arn:aws:dms:ap-northeast-1:your_account_id:rep:EIKUGIRSZIHP7TDYCBZ6EUFIFA \
+  --migration-type "full-load-and-cdc" \
+  --table-mappings 'file://table_mapping.json' \
+  --replication-task-settings 'file://task_settings.json' 
+```
+当看到任务状态转为 ready 后，启动任务：
+```
+aws dms start-replication-task \
+  --replication-task-arn arn:aws:dms:ap-northeast-1:your_account_id:task:5M4LJ567IL3RAM4PSVNZUL6DP4 \
+  --start-replication-task-type start-replication
+```
 
 ## 3. 增加一个 Glue Job 来进行表格分离操作
-
+可以先创建一个 Glue Crawler ，对 Firehose 投递到 S3 中的内容进行爬取，我们可以看到仅有 metadata 和 data 两个字段。
+![](http://www.baidu.com/img/bdlogo.gif)  
+实际上， 
 
 ### 从 S3 对象创建一个 DDF
 
